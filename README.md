@@ -48,7 +48,7 @@ This sample **requires** prerequisites in order to run.
 ## starting the Virtual Environment and launching the app
 
 ###
-*See this page for how to set up the virtual environment but you have it configured at /Documents/azurebot/*
+*See [this page](https://learn.microsoft.com/en-gb/azure/bot-service/bot-service-quickstart-create-bot?view=azure-bot-service-4.0&tabs=python%2Cvs#create-and-enable-a-virtual-environment) for how to set up the virtual environment but you have it configured at /Documents/azurebot/*
 
 1. `cd` into the azurebot repo on a cmd line.
 2. Run `venv\Scripts\activate.bat`.
