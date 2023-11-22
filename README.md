@@ -58,4 +58,4 @@ This sample **requires** prerequisites in order to run.
 6. Connect to the Bot using the **Bot Framework Emulator**
 
 # To do
-1. Investigate constraining its responses to a website to emulate AOAI
+1. Test web-scraper functionality - need to add a test site and make sure it picks the right elements.
