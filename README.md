@@ -59,3 +59,5 @@ This sample **requires** prerequisites in order to run.
 
 # To do
 1. Test web-scraper functionality - need to add a test site and make sure it picks the right elements.
+
+2. Need to also update requirements and dependencies
