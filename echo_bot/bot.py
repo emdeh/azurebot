@@ -17,7 +17,7 @@ class MyBot(ActivityHandler):
         charity_info = search_website(user_input)
         if charity_info:
             # Formulate a prompt for OpenAI to summarize the charity info
-            prompt = f"Please provide a summary for the following charity information. In your response, provide a summary of activities, a list of the charity programs, where the charity operates, and a brief financial summary. Here is the charity info:\n\n{charity_info}"
+            prompt = f"Please provide a summary for the following charity information. In your response, provide a summary of activities, a list of the charity programs, where the charity operates, a brief financial summary, and list the key people. Here is the charity info:\n\n{charity_info}"
 
             try:
                 # Send the prompt to OpenAI and get a summary
