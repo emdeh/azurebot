@@ -3,6 +3,7 @@ from botbuilder.schema import ChannelAccount
 from openai import AsyncOpenAI
 import os
 import json
+from web_scraper import search_website
 
 # Load OpenAI API key from environment variable
 api_key = os.getenv("OPENAI_API_KEY")
@@ -12,33 +13,29 @@ class MyBot(ActivityHandler):
     async def on_message_activity(self, turn_context: TurnContext):
         user_input = turn_context.activity.text
 
-        try:
-            chat_completion = await client.chat.completions.create(
-                messages=[{"role": "user", "content": user_input}],
-                model="gpt-3.5-turbo"
-            )
+        # Use the web scraper to get charity info
+        charity_info = search_website(user_input)
+        if charity_info:
+            # Formulate a prompt for OpenAI to summarize the charity info
+            prompt = f"Please provide a summary for the following charity information:\n\n{charity_info}"
 
-            # Debug: Print the raw response
-            #print("Raw response:", chat_completion)
-            
-            # Try to convert the response to JSON for easier inspection
-            #try:
-            #    response_json = json.dumps(chat_completion, default=lambda o: o.__dict__)
-            #    print("JSON formatted response:", response_json)
-            #except Exception as json_error:
-            #    print("Error in JSON conversion:", json_error)
+            try:
+                # Send the prompt to OpenAI and get a summary
+                chat_completion = await client.chat.completions.create(
+                    messages=[{"role": "system", "content": prompt}],
+                    model="gpt-3.5-turbo"
+                )
 
-            # Extracting the response content
-            # Update this part based on the structure revealed by the print statement
+                # Extracting the OpenAI response content
+                bot_reply = chat_completion.choices[0].message.content
+            except Exception as e:
+                bot_reply = "Sorry, I am having trouble summarizing the information right now."
+                print(f"Error: {e}")
+        else:
+            bot_reply = "I couldn't find any information on that charity."
 
-            bot_reply = chat_completion.choices[0].message.content
-
-            # Send OpenAI's response back to the user
-            await turn_context.send_activity(MessageFactory.text(bot_reply))
-            
-        except Exception as e:
-            await turn_context.send_activity("Sorry, I am having trouble responding right now.")
-            print(f"Error: {e}")
+        # Send the response (either the summary or an error message) back to the user
+        await turn_context.send_activity(MessageFactory.text(bot_reply))
 
     async def on_members_added_activity(
         self,
@@ -47,4 +44,4 @@ class MyBot(ActivityHandler):
     ):
         for member_added in members_added:
             if member_added.id != turn_context.activity.recipient.id:
-                await turn_context.send_activity("Hello and welcome!")
+                await turn_context.send_activity("Hello and welcome! Please tell me which charity you'd like me to look up.")
