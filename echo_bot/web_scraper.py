@@ -5,21 +5,32 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import logging
-import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
+# Asynchronously execute calls to a pool of threads.
 executor = ThreadPoolExecutor(max_workers=5)
 
 async def async_search_website(query):
     loop = asyncio.get_event_loop()
     charity_info = await loop.run_in_executor(executor, search_website, query)
     return charity_info
+
+def wait_for_element(driver, locator, timeout=10):
+    """Wait for an element to be present and visible."""
+    try:
+        WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located(locator),
+            f"Element with locator {locator} not found in {timeout} seconds."
+        )
+    except TimeoutException as e:
+        logging.exception("Timed out waiting for element: {0}".format(locator))
+        raise e  # Re-raise exception to handle it in the calling function
 
 def search_website(query, max_retries=3):
     # Configure Edge in headless mode
@@ -33,46 +44,55 @@ def search_website(query, max_retries=3):
     driver = webdriver.Edge(service=service, options=options)
 
     attempt = 0
-    
     while attempt < max_retries:
         try:
-            # Navigate to the website
             driver.get("https://www.acnc.gov.au/charity/charities")
 
-            # Wait for the search box to be available
-            wait = WebDriverWait(driver, 10)
-            search_box = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[placeholder='Search charity name or ABN']")))
-            
-            # Enter the search query and submit
+            # Use efficient waits for elements
+            search_box_locator = (By.CSS_SELECTOR, "input[placeholder='Search charity name or ABN']")
+            wait_for_element(driver, search_box_locator)
+            search_box = driver.find_element(*search_box_locator)
             search_box.send_keys(query)
             search_box.send_keys(Keys.RETURN)
-            
-            # Wait for the charities table to load
-            wait.until(EC.presence_of_element_located((By.CLASS_NAME, "charities-table")))
 
-            # Find the first charity name link in the table and click it
-            first_charity_link = driver.find_element(By.CSS_SELECTOR, ".charities-table tbody tr:first-child .name")
-            first_charity_link.click()
+            # Check if 'No charities found' message is displayed
+            no_results_locator = (By.CSS_SELECTOR, ".alert-warning")
+            if driver.find_elements(*no_results_locator):
+                logging.info("No charities found matching the criteria.")
+                return "No charities found matching your criteria."
 
-            # Wait for the 'Print Charity Details' button within the 'charity-print' aside to be visible
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "aside.charity-print button.btn-outline-success")))
+            # Proceed with finding the table and charity link
+            table_locator = (By.CLASS_NAME, "charities-table")
+            wait_for_element(driver, table_locator)
 
-            # Locate the div containing the charity information and extract its text
-            charity_details_div = driver.find_element(By.CLASS_NAME, "charity-profile")
+            first_charity_link_locator = (By.CSS_SELECTOR, ".charities-table tbody tr:first-child a.name")
+            wait_for_element(driver, first_charity_link_locator)
+            for _ in range(3):  # Retry up to 3 times in case of stale element
+                try:
+                    first_charity_link = driver.find_element(*first_charity_link_locator)
+                    logging.info("Clicking on the first charity link.")
+                    first_charity_link.click()
+                    break
+                except StaleElementReferenceException:
+                    logging.warning("Encountered StaleElementReferenceException, retrying...")
+                    continue
+
+            print_button_locator = (By.CSS_SELECTOR, "aside.charity-print button.btn-outline-success")
+            wait_for_element(driver, print_button_locator)
+
+            charity_details_div_locator = (By.CLASS_NAME, "charity-profile")
+            charity_details_div = driver.find_element(*charity_details_div_locator)
             charity_details_text = charity_details_div.text
-            
-            # Print or return the extracted text
+
             return charity_details_text
 
-        except (NoSuchElementException, TimeoutException) as e:
-            logging.exception(f"Error encountered while trying to scrape the website: {e}")
+        except (NoSuchElementException, TimeoutException, StaleElementReferenceException) as e:
+            logging.exception("Error encountered during scraping: {0}".format(e))
             attempt += 1
-            time.sleep(5)  # Wait a bit before retrying
         except Exception as e:
-            logging.exception(f"An unexpected error occurred: {e}")
+            logging.exception("Unexpected error occurred: {0}".format(e))
             break
         finally:
-            # Close the WebDriver
             driver.quit()
     
-    return None  # or an appropriate fallback/error message
+    return None  # Return None or appropriate fallback/error message if retries are exhausted
