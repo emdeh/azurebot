@@ -58,6 +58,6 @@ This sample **requires** prerequisites in order to run.
 6. Connect to the Bot using the **Bot Framework Emulator**
 
 # To do
-1. Test web-scraper functionality - need to add a test site and make sure it picks the right elements.
-
-2. Need to also update requirements and dependencies
+1. figure out how to optimise network latency with ngrok
+2. add a cache to handle subsequent questions about the charity.
+3. figure out how to pull out a charity from natural language input.
