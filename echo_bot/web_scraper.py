@@ -8,10 +8,18 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 import logging
 import time
-
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
+
+executor = ThreadPoolExecutor(max_workers=5)
+
+async def async_search_website(query):
+    loop = asyncio.get_event_loop()
+    charity_info = await loop.run_in_executor(executor, search_website, query)
+    return charity_info
 
 def search_website(query, max_retries=3):
     # Configure Edge in headless mode
